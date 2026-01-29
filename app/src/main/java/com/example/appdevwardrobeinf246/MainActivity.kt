@@ -21,11 +21,11 @@ class MainActivity : AppCompatActivity() {
         val forgotPassword = findViewById<TextView>(R.id.forgotPassword)
 
         forgotPassword.setOnClickListener {
-            startActivity(Intent(this, ForgotPasswordActivity::class.java))
+            startActivity(Intent(this, forgotpassword::class.java))
         }
 
         signupLink.setOnClickListener {
-            startActivity(Intent(this, SignUpActivity::class.java))
+            startActivity(Intent(this, signup::class.java))
         }
 
         loginBtn.setOnClickListener {
@@ -48,7 +48,7 @@ class MainActivity : AppCompatActivity() {
         if (username == savedUser && password == savedPass) {
             Toast.makeText(this, "Login Successful!", Toast.LENGTH_SHORT).show()
 
-            val intent = Intent(this, MainApp::class.java)
+            val intent = Intent(this, mainapp::class.java)
             intent.putExtra("username", username)
             startActivity(intent)
             finish()
