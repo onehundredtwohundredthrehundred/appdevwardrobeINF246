@@ -78,7 +78,11 @@ public class frag2 extends Fragment {
             addOutfitItem(outfit, i);
         }
     }
-
+    private void updateItemWearCounts(outfit outfit) {
+        for (clothitem item : outfit.clothingItems) {
+            item.wear();
+        }
+    }
     private void addOutfitItem(outfit outfit, int position) {
         LayoutInflater inflater = LayoutInflater.from(getContext());
         View outfitView = inflater.inflate(R.layout.outfititem, null);
@@ -159,11 +163,15 @@ public class frag2 extends Fragment {
             new android.app.AlertDialog.Builder(getContext())
                     .setTitle("Wear Outfit")
                     .setMessage("Are you sure you want to mark this outfit as worn today?\n\n" +
-                            "Outfit: " + outfit.name)
+                            "Outfit: " + outfit.name +
+                            "\n\nThis will increment wear counts for all items in the outfit.")
                     .setPositiveButton("Yes, I wore it", (dialog, which) -> {
                         outfit.wear();
+                        updateItemWearCounts(outfit);
                         tvTimesWorn.setText("Times worn: " + outfit.timesWorn);
                         tvLastWorn.setText(formatLastWornDate(outfit.lastWornTimestamp));
+                        checkWashNeeded(outfit);
+
                         Toast.makeText(getContext(), "Wearing " + outfit.name + "! Total times: " + outfit.timesWorn, Toast.LENGTH_SHORT).show();
                     })
                     .setNegativeButton("Cancel", null)
@@ -200,7 +208,39 @@ public class frag2 extends Fragment {
             containerOutfits.addView(space);
         }
     }
+    private void checkWashNeeded(outfit wornOutfit) {
+        boolean needsWash = false;
+        StringBuilder itemsNeedingWash = new StringBuilder();
 
+        for (clothitem item : wornOutfit.clothingItems) {
+            for (washsched schedule : tempdb.washSchedules) {
+                if (schedule.items.contains(item) &&
+                        item.timesWornSinceWash >= schedule.maxWearsBeforeWash) {
+                    needsWash = true;
+                    if (itemsNeedingWash.length() > 0) itemsNeedingWash.append(", ");
+                    itemsNeedingWash.append(item.name);
+                }
+            }
+        }
+
+        if (needsWash) {
+            showWashReminder(itemsNeedingWash.toString());
+        }
+    }
+
+    private void showWashReminder(String items) {
+        new android.app.AlertDialog.Builder(getContext())
+                .setTitle("Wash Reminder")
+                .setMessage("The following items have reached their wash limit:\n" +
+                        items + "\n\nConsider adding them to your wash schedule.")
+                .setPositiveButton("Open Wash Tracker", (dialog, which) -> {
+                    if (getActivity() instanceof mainapp) {
+                        ((mainapp) getActivity()).switchToWashTab();
+                    }
+                })
+                .setNegativeButton("Later", null)
+                .show();
+    }
     private String formatLastWornDate(long timestamp) {
         if (timestamp == 0) {
             return "Never";

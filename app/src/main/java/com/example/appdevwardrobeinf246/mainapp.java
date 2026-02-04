@@ -54,6 +54,11 @@ public class mainapp extends AppCompatActivity {
         });
     }
 
+    public void switchToWashTab() {
+        viewPager.setCurrentItem(2);
+        bottomNavigationView.setSelectedItemId(R.id.bottomNavigationView);
+    }
+
     private class ViewPagerAdapter extends FragmentStateAdapter {
         public ViewPagerAdapter(FragmentActivity fragmentActivity) {
             super(fragmentActivity);
@@ -63,7 +68,6 @@ public class mainapp extends AppCompatActivity {
         public int getItemCount() {
             return 3;
         }
-
         @Override
         public Fragment createFragment(int position) {
             if (position == 0) {
@@ -83,5 +87,7 @@ public class mainapp extends AppCompatActivity {
                 return new frag3();
             }
         }
+
+
     }
 }
