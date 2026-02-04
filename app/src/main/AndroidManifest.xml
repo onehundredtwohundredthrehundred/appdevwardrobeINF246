@@ -43,23 +43,19 @@
 
         <activity
             android:name=".Label"
-            android:exported="false"
-            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+            android:exported="false" />
 
         <activity
             android:name=".itemdetail"
-            android:exported="false"
-            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+            android:exported="false" />
 
         <activity
             android:name=".addoutfit"
-            android:exported="false"
-            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+            android:exported="false" />
 
         <activity
             android:name=".outfitdetail"
-            android:exported="false"
-            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

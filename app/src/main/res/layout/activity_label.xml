@@ -54,21 +54,19 @@
 
         <Spinner
             android:id="@+id/spinnerArea"
-            style="@android:style/Widget.Holo.Light.Spinner"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"/>
 
         <Spinner
             android:id="@+id/spinnerType"
-            style="@android:style/Widget.Holo.Light.Spinner"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"/>
 
         <Button
             android:id="@+id/btnSave"
             android:text="Save"
-            android:backgroundTint="#018786"
-            android:textColor="@color/white"
+            android:backgroundTint="#b0daff"
+            android:textColor="#232323"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"/>
 
