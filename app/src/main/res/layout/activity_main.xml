@@ -45,6 +45,7 @@
         <EditText
             android:id="@+id/usernameInput"
             android:hint="Input Username Here"
+            android:backgroundTint="#9ED0FF"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"/>
@@ -58,7 +59,10 @@
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:endIconMode="password_toggle">
+            app:endIconMode="password_toggle"
+            app:boxStrokeColor="#9ED0FF"
+            app:hintTextColor="#9ED0FF"
+            app:cursorColor="#9ED0FF">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/passwordInput"
