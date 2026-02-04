@@ -11,7 +11,6 @@
         android:orientation="vertical"
         android:padding="8dp">
 
-        <!-- Schedule Name -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -30,7 +29,6 @@
             android:padding="12dp"
             android:layout_marginBottom="16dp"/>
 
-        <!-- Max Wears Before Wash -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -52,7 +50,6 @@
             android:padding="12dp"
             android:layout_marginBottom="16dp"/>
 
-        <!-- Recurring Switch -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -76,7 +73,6 @@
                 android:layout_marginStart="12dp"/>
         </LinearLayout>
 
-        <!-- Recurrence Days -->
         <LinearLayout
             android:id="@+id/layoutRecurrence"
             android:layout_width="match_parent"
@@ -106,7 +102,6 @@
                 android:padding="12dp"/>
         </LinearLayout>
 
-        <!-- Next Wash Date -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

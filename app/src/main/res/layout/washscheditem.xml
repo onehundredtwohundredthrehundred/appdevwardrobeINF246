@@ -8,7 +8,6 @@
     android:layout_marginBottom="12dp"
     android:elevation="4dp">
 
-    <!-- Schedule header -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -65,7 +64,6 @@
         android:layout_marginTop="8dp"
         android:progressTint="#9ED0FF"/>
 
-    <!-- Button row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
