@@ -1,720 +1,336 @@
 package com.example.appdevwardrobeinf246;
 
-import android.app.AlarmManager;
 import android.app.AlertDialog;
-import android.app.DatePickerDialog;
-import android.app.PendingIntent;
-import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.os.Build;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.*;
+import android.widget.Button;
+import android.widget.GridLayout;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.cardview.widget.CardView;
 import androidx.fragment.app.Fragment;
 
-import com.google.gson.Gson;
+import com.bumptech.glide.Glide;
+import com.google.android.material.button.MaterialButtonToggleGroup;
 
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
 public class frag3 extends Fragment {
 
-    private LinearLayout containerWashSchedules;
-    private TextView tvEmptyState;
-    private List<ApiService.WashScheduleSummary> scheduleList = new ArrayList<>();
+    private LinearLayout containerLaundry;
+    private ProgressBar progressBar;
+    private TextView tvSelectedCount;
+    private Button btnWash;
+    private MaterialButtonToggleGroup toggleGroup;
+    private LinearLayout bottomWashBar;
+    private List<clothitem> allItems = new ArrayList<>();
+    private Set<Integer> selectedIds = new HashSet<>();
+
+    private Map<String, List<clothitem>> itemsByCategory = new HashMap<>();
+    private String currentCategory = "fresh";
+
+    private TextView tvCategoryTitle;
+    private TextView tvCategoryCount;
+
+    private SharedPreferences sharedPreferences;
+    private int userId;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.frag3, container, false);
+        return inflater.inflate(R.layout.frag3, container, false);
+    }
 
-        containerWashSchedules = view.findViewById(R.id.containerWashSchedules);
-        tvEmptyState = view.findViewById(R.id.tvEmptyState);
-        Button btnAddSchedule = view.findViewById(R.id.btnAddSchedule);
-        btnAddSchedule.setOnClickListener(v -> showCreateScheduleDialog());
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
 
-        loadWashSchedules();
-        startNotificationService();
+        tvCategoryTitle = view.findViewById(R.id.tvCategoryTitle);
+        tvCategoryCount = view.findViewById(R.id.tvCategoryCount);
+        bottomWashBar = view.findViewById(R.id.bottomWashBar);
+        containerLaundry = view.findViewById(R.id.containerLaundry);
+        progressBar = view.findViewById(R.id.progressBar);
+        tvSelectedCount = view.findViewById(R.id.tvSelectedCount);
+        btnWash = view.findViewById(R.id.btnWash);
+        toggleGroup = view.findViewById(R.id.toggleGroup);
 
-        return view;
+        sharedPreferences = requireActivity().getSharedPreferences("UserPrefs", Context.MODE_PRIVATE);
+        userId = sharedPreferences.getInt("user_id", -1);
+
+        if (userId == -1) {
+            Toast.makeText(requireContext(), "Please log in again", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        toggleGroup.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
+            if (isChecked) {
+                if (checkedId == R.id.btnFresh) {
+                    currentCategory = "fresh";
+                } else if (checkedId == R.id.btnUsed) {
+                    currentCategory = "used";
+                } else if (checkedId == R.id.btnDirty) {
+                    currentCategory = "dirty";
+                }
+                displayCurrentCategory();
+            }
+        });
+
+
+        toggleGroup.check(R.id.btnFresh);
+
+        btnWash.setOnClickListener(v -> showWashConfirmation());
+
+        loadLaundryItems();
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        loadWashSchedules();
+        loadLaundryItems();
     }
 
-    private void startNotificationService() {
-        Intent serviceIntent = new Intent(getContext(), notif.class);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            getContext().startForegroundService(serviceIntent);
-        } else {
-            getContext().startService(serviceIntent);
-        }
-    }
+    private void loadLaundryItems() {
+        showLoading(true);
 
-    // ------------------------------------------------------------
-    //  LOAD SCHEDULES FROM SERVER
-    // ------------------------------------------------------------
-    private void loadWashSchedules() {
-        int userId = getCurrentUserId();
-        if (userId == -1) {
-            Toast.makeText(getContext(), "Not logged in", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        ApiService.GetClothesRequest request = new ApiService.GetClothesRequest(
+                userId, "", "all", "all", "all"
+        );
 
-        ApiService.GetWashSchedulesRequest request = new ApiService.GetWashSchedulesRequest(userId);
-        retrofitclient.getClient().getWashSchedules(request).enqueue(new Callback<ApiService.GetWashSchedulesResponse>() {
-            @Override
-            public void onResponse(Call<ApiService.GetWashSchedulesResponse> call, Response<ApiService.GetWashSchedulesResponse> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    ApiService.GetWashSchedulesResponse res = response.body();
-                    if ("success".equals(res.getStatus())) {
-                        scheduleList = res.getSchedules() != null ? res.getSchedules() : new ArrayList<>();
-                        getActivity().runOnUiThread(() -> displaySchedules());
-                    } else {
-                        showError(res.getMessage());
-                    }
-                } else {
-                    showError("Failed to load schedules");
-                }
-            }
-
-            @Override
-            public void onFailure(Call<ApiService.GetWashSchedulesResponse> call, Throwable t) {
-                showError("Network error: " + t.getMessage());
-            }
-        });
-    }
-
-    private void displaySchedules() {
-        containerWashSchedules.removeAllViews();
-        if (scheduleList.isEmpty()) {
-            tvEmptyState.setVisibility(View.VISIBLE);
-        } else {
-            tvEmptyState.setVisibility(View.GONE);
-            for (int i = 0; i < scheduleList.size(); i++) {
-                addScheduleItem(scheduleList.get(i), i);
-            }
-        }
-    }
-
-    private void addScheduleItem(ApiService.WashScheduleSummary schedule, int position) {
-        LayoutInflater inflater = LayoutInflater.from(getContext());
-        View scheduleView = inflater.inflate(R.layout.washscheditem, containerWashSchedules, false);
-
-        TextView tvScheduleName = scheduleView.findViewById(R.id.tvScheduleName);
-        TextView tvNextWashDate = scheduleView.findViewById(R.id.tvNextWashDate);
-        TextView tvItemsCount = scheduleView.findViewById(R.id.tvItemsCount);
-        ProgressBar progressBar = scheduleView.findViewById(R.id.progressBarWear);
-        Button btnEdit = scheduleView.findViewById(R.id.btnEditSchedule);
-        Button btnDelete = scheduleView.findViewById(R.id.btnDeleteSchedule);
-        Switch swNotifications = scheduleView.findViewById(R.id.swNotifications);
-        Button btnMarkWashed = scheduleView.findViewById(R.id.btnMarkWashed);
-
-        tvScheduleName.setText(schedule.name);
-        if (schedule.nextWashDate != null && schedule.nextWashDate > 0) {
-            SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy 'at' hh:mm a", Locale.getDefault());
-            tvNextWashDate.setText("Next wash: " + sdf.format(new Date(schedule.nextWashDate)));
-        } else {
-            tvNextWashDate.setText("No wash date set");
-        }
-
-        int totalItems = schedule.items != null ? schedule.items.size() : 0;
-        if (schedule.outfits != null) {
-            for (ApiService.OutfitSummary outfit : schedule.outfits) {
-                totalItems += outfit.getClothing_items() != null ? outfit.getClothing_items().size() : 0;
-            }
-        }
-
-        int itemsNeedingWash = 0;
-        int maxWear = schedule.maxWearsBeforeWash;
-        int currentMaxWear = 0;
-
-        if (schedule.items != null) {
-            for (clothitem item : schedule.items) {
-                if (item.timesWornSinceWash >= maxWear) itemsNeedingWash++;
-                currentMaxWear = Math.max(currentMaxWear, item.timesWornSinceWash);
-            }
-        }
-        if (schedule.outfits != null) {
-            for (ApiService.OutfitSummary outfit : schedule.outfits) {
-                if (outfit.getClothing_items() != null) {
-                    for (clothitem item : outfit.getClothing_items()) {
-                        if (item.timesWornSinceWash >= maxWear) itemsNeedingWash++;
-                        currentMaxWear = Math.max(currentMaxWear, item.timesWornSinceWash);
-                    }
-                }
-            }
-        }
-
-        tvItemsCount.setText(itemsNeedingWash + "/" + totalItems + " items need washing");
-        progressBar.setMax(Math.max(1, maxWear));
-        progressBar.setProgress(currentMaxWear);
-
-        swNotifications.setChecked(schedule.notificationsEnabled);
-        swNotifications.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            // Update notification preference on server
-            updateNotificationPreference(schedule.serverId, isChecked);
-        });
-
-        btnEdit.setOnClickListener(v -> showEditScheduleDialog(schedule, position));
-        btnDelete.setOnClickListener(v -> deleteSchedule(schedule.serverId, position));
-        btnMarkWashed.setOnClickListener(v -> markScheduleAsWashed(schedule.serverId, position));
-
-        containerWashSchedules.addView(scheduleView);
-
-        // Add spacing between items
-        if (position < scheduleList.size() - 1) {
-            View space = new View(getContext());
-            space.setLayoutParams(new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, 16));
-            containerWashSchedules.addView(space);
-        }
-    }
-
-    private void updateNotificationPreference(int scheduleId, boolean enabled) {
-        int userId = getCurrentUserId();
-        ApiService.UpdateWashScheduleRequest request = new ApiService.UpdateWashScheduleRequest(scheduleId, userId);
-        request.setNotificationsEnabled(enabled ? 1 : 0);
-
-        retrofitclient.getClient().updateWashSchedule(request).enqueue(new Callback<ApiService.SimpleResponse>() {
-            @Override
-            public void onResponse(Call<ApiService.SimpleResponse> call, Response<ApiService.SimpleResponse> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    ApiService.SimpleResponse res = response.body();
-                    if ("success".equals(res.getStatus())) {
-                        Toast.makeText(getContext(), "Notifications " + (enabled ? "enabled" : "disabled"), Toast.LENGTH_SHORT).show();
-                    }
-                }
-            }
-            @Override
-            public void onFailure(Call<ApiService.SimpleResponse> call, Throwable t) {
-                // silent fail
-            }
-        });
-    }
-
-    // ------------------------------------------------------------
-    //  DELETE SCHEDULE
-    // ------------------------------------------------------------
-    private void deleteSchedule(int scheduleId, int position) {
-        new AlertDialog.Builder(getContext())
-                .setTitle("Delete Wash Schedule")
-                .setMessage("Are you sure you want to delete this schedule?")
-                .setPositiveButton("Delete", (dialog, which) -> {
-                    int userId = getCurrentUserId();
-                    ApiService.DeleteWashScheduleRequest request = new ApiService.DeleteWashScheduleRequest(scheduleId, userId);
-                    retrofitclient.getClient().deleteWashSchedule(request).enqueue(new Callback<ApiService.SimpleResponse>() {
-                        @Override
-                        public void onResponse(Call<ApiService.SimpleResponse> call, Response<ApiService.SimpleResponse> response) {
-                            if (response.isSuccessful() && response.body() != null) {
-                                ApiService.SimpleResponse res = response.body();
-                                if ("success".equals(res.getStatus())) {
-                                    scheduleList.remove(position);
-                                    getActivity().runOnUiThread(() -> {
-                                        displaySchedules();
-                                        Toast.makeText(getContext(), "Schedule deleted", Toast.LENGTH_SHORT).show();
-                                    });
-                                } else {
-                                    Toast.makeText(getContext(), res.getMessage(), Toast.LENGTH_SHORT).show();
-                                }
-                            }
-                        }
-
-                        @Override
-                        public void onFailure(Call<ApiService.SimpleResponse> call, Throwable t) {
-                            Toast.makeText(getContext(), "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    // ------------------------------------------------------------
-    //  MARK SCHEDULE AS WASHED
-    // ------------------------------------------------------------
-    private void markScheduleAsWashed(int scheduleId, int position) {
-        int userId = getCurrentUserId();
-        ApiService.MarkWashScheduleRequest request = new ApiService.MarkWashScheduleRequest(scheduleId, userId);
-        retrofitclient.getClient().markWashSchedule(request).enqueue(new Callback<ApiService.SimpleResponse>() {
-            @Override
-            public void onResponse(Call<ApiService.SimpleResponse> call, Response<ApiService.SimpleResponse> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    ApiService.SimpleResponse res = response.body();
-                    if ("success".equals(res.getStatus())) {
-                        // Refresh the whole list
-                        loadWashSchedules();
-                        Toast.makeText(getContext(), "Items marked as washed!", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(getContext(), res.getMessage(), Toast.LENGTH_SHORT).show();
-                    }
-                }
-            }
-
-            @Override
-            public void onFailure(Call<ApiService.SimpleResponse> call, Throwable t) {
-                Toast.makeText(getContext(), "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    // ------------------------------------------------------------
-    //  CREATE SCHEDULE DIALOG
-    // ------------------------------------------------------------
-    private void showCreateScheduleDialog() {
-        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.washsched, null);
-
-        EditText etName = dialogView.findViewById(R.id.etScheduleName);
-        EditText etMaxWears = dialogView.findViewById(R.id.etMaxWears);
-        Switch swRecurring = dialogView.findViewById(R.id.swRecurring);
-        EditText etRecurrenceDays = dialogView.findViewById(R.id.etRecurrenceDays);
-        Button btnSetDate = dialogView.findViewById(R.id.btnSetDate);
-        Button btnSelectItems = dialogView.findViewById(R.id.btnSelectItems);
-        TextView tvSelectedCount = dialogView.findViewById(R.id.tvSelectedCount);
-
-        final List<Object> selectedItems = new ArrayList<>();
-        final Calendar washDate = Calendar.getInstance();
-        washDate.add(Calendar.DAY_OF_YEAR, 7); // default 7 days ahead
-
-        updateDateButtonText(btnSetDate, washDate);
-        btnSetDate.setOnClickListener(v -> showDateTimePicker(washDate, btnSetDate));
-
-        btnSelectItems.setOnClickListener(v -> showItemSelectionDialog(selectedItems, tvSelectedCount));
-
-        new AlertDialog.Builder(getContext())
-                .setTitle("Create Wash Schedule")
-                .setView(dialogView)
-                .setPositiveButton("Create", (dialog, which) -> {
-                    String name = etName.getText().toString().trim();
-                    if (name.isEmpty()) {
-                        Toast.makeText(getContext(), "Please enter a schedule name", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    int maxWears = 3;
-                    try {
-                        maxWears = Integer.parseInt(etMaxWears.getText().toString());
-                    } catch (NumberFormatException ignored) {}
-
-                    int userId = getCurrentUserId();
-                    ApiService.AddWashScheduleRequest request = new ApiService.AddWashScheduleRequest(userId, name, maxWears);
-                    request.setNextWashDate(washDate.getTimeInMillis());
-                    request.setIsRecurring(swRecurring.isChecked() ? 1 : 0);
-                    if (swRecurring.isChecked()) {
-                        try {
-                            request.setRecurrenceDays(Integer.parseInt(etRecurrenceDays.getText().toString()));
-                        } catch (NumberFormatException e) {
-                            request.setRecurrenceDays(7);
-                        }
-                    }
-
-                    // Extract IDs from selected items
-                    List<Integer> itemIds = new ArrayList<>();
-                    List<Integer> outfitIds = new ArrayList<>();
-                    for (Object obj : selectedItems) {
-                        if (obj instanceof clothitem) {
-                            itemIds.add(((clothitem) obj).id);
-                        } else if (obj instanceof ApiService.OutfitSummary) {
-                            outfitIds.add(((ApiService.OutfitSummary) obj).getId());
-                        }
-                    }
-                    request.setItemIds(itemIds);
-                    request.setOutfitIds(outfitIds);
-                    Log.d("WASH_REQ", "Request: " + new Gson().toJson(request));
-                    retrofitclient.getClient().addWashSchedule(request).enqueue(new Callback<ApiService.SimpleResponse>() {
-                        @Override
-                        public void onResponse(Call<ApiService.SimpleResponse> call, Response<ApiService.SimpleResponse> response) {
-                            if (response.isSuccessful() && response.body() != null) {
-                                ApiService.SimpleResponse res = response.body();
-                                if ("success".equals(res.getStatus())) {
-                                    loadWashSchedules(); // refresh list
-                                    Toast.makeText(getContext(), "Wash schedule created!", Toast.LENGTH_SHORT).show();
-                                } else {
-                                    Toast.makeText(getContext(), res.getMessage(), Toast.LENGTH_SHORT).show();
-                                }
-                                Log.d("WASH_RESP", "Response: " + new Gson().toJson(res));
-                            }
-                        }
-
-                        @Override
-                        public void onFailure(Call<ApiService.SimpleResponse> call, Throwable t) {
-                            Toast.makeText(getContext(), "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    // ------------------------------------------------------------
-    //  EDIT SCHEDULE DIALOG
-    // ------------------------------------------------------------
-    private void showEditScheduleDialog(ApiService.WashScheduleSummary schedule, int position) {
-        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.washsched, null);
-
-        EditText etName = dialogView.findViewById(R.id.etScheduleName);
-        EditText etMaxWears = dialogView.findViewById(R.id.etMaxWears);
-        Switch swRecurring = dialogView.findViewById(R.id.swRecurring);
-        EditText etRecurrenceDays = dialogView.findViewById(R.id.etRecurrenceDays);
-        Button btnSetDate = dialogView.findViewById(R.id.btnSetDate);
-        Button btnSelectItems = dialogView.findViewById(R.id.btnSelectItems);
-        TextView tvSelectedCount = dialogView.findViewById(R.id.tvSelectedCount);
-
-        etName.setText(schedule.name);
-        etMaxWears.setText(String.valueOf(schedule.maxWearsBeforeWash));
-        swRecurring.setChecked(schedule.isRecurring);
-        etRecurrenceDays.setText(String.valueOf(schedule.recurrenceDays));
-
-        final List<Object> selectedItems = new ArrayList<>();
-        // Add current items and outfits to selectedItems list
-        if (schedule.items != null) selectedItems.addAll(schedule.items);
-        if (schedule.outfits != null) selectedItems.addAll(schedule.outfits);
-        tvSelectedCount.setText(selectedItems.size() + " items selected");
-
-        final Calendar washDate = Calendar.getInstance();
-        if (schedule.nextWashDate != null && schedule.nextWashDate > 0) {
-            washDate.setTimeInMillis(schedule.nextWashDate);
-        } else {
-            washDate.add(Calendar.DAY_OF_YEAR, 7);
-        }
-        updateDateButtonText(btnSetDate, washDate);
-
-        btnSetDate.setOnClickListener(v -> showDateTimePicker(washDate, btnSetDate));
-        btnSelectItems.setOnClickListener(v -> showItemSelectionDialog(selectedItems, tvSelectedCount));
-
-        new AlertDialog.Builder(getContext())
-                .setTitle("Edit Wash Schedule")
-                .setView(dialogView)
-                .setPositiveButton("Save Changes", (dialog, which) -> {
-                    String name = etName.getText().toString().trim();
-                    if (name.isEmpty()) {
-                        Toast.makeText(getContext(), "Please enter a schedule name", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    int maxWears = 3;
-                    try {
-                        maxWears = Integer.parseInt(etMaxWears.getText().toString());
-                    } catch (NumberFormatException ignored) {}
-
-                    int userId = getCurrentUserId();
-                    ApiService.UpdateWashScheduleRequest request = new ApiService.UpdateWashScheduleRequest(schedule.serverId, userId);
-                    request.setName(name);
-                    request.setMaxWearsBeforeWash(maxWears);
-                    request.setNextWashDate(washDate.getTimeInMillis());
-                    request.setIsRecurring(swRecurring.isChecked() ? 1 : 0);
-                    if (swRecurring.isChecked()) {
-                        try {
-                            request.setRecurrenceDays(Integer.parseInt(etRecurrenceDays.getText().toString()));
-                        } catch (NumberFormatException e) {
-                            request.setRecurrenceDays(7);
-                        }
-                    }
-
-                    // Extract IDs from selected items
-                    List<Integer> itemIds = new ArrayList<>();
-                    List<Integer> outfitIds = new ArrayList<>();
-                    for (Object obj : selectedItems) {
-                        if (obj instanceof clothitem) {
-                            itemIds.add(((clothitem) obj).id);
-                        } else if (obj instanceof ApiService.OutfitSummary) {
-                            outfitIds.add(((ApiService.OutfitSummary) obj).getId());
-                        }
-                    }
-                    request.setItemIds(itemIds);
-                    request.setOutfitIds(outfitIds);
-                    Log.d("WASH_REQ", "Request: " + new Gson().toJson(request));
-                    retrofitclient.getClient().updateWashSchedule(request).enqueue(new Callback<ApiService.SimpleResponse>() {
-                        @Override
-                        public void onResponse(Call<ApiService.SimpleResponse> call, Response<ApiService.SimpleResponse> response) {
-                            if (response.isSuccessful() && response.body() != null) {
-                                ApiService.SimpleResponse res = response.body();
-                                if ("success".equals(res.getStatus())) {
-                                    loadWashSchedules(); // refresh list
-                                    Toast.makeText(getContext(), "Wash schedule updated!", Toast.LENGTH_SHORT).show();
-                                } else {
-                                    Toast.makeText(getContext(), res.getMessage(), Toast.LENGTH_SHORT).show();
-                                }
-                                Log.d("WASH_RESP", "Response: " + new Gson().toJson(res));
-                            }
-                        }
-
-                        @Override
-                        public void onFailure(Call<ApiService.SimpleResponse> call, Throwable t) {
-                            Toast.makeText(getContext(), "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-    private void showItemSelectionDialog(List<Object> selectedItems, TextView countView) {
-        int userId = getCurrentUserId();
-        if (userId == -1) {
-            Toast.makeText(getContext(), "Not logged in", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // Fetch clothes
-        ApiService.GetClothesRequest clothesRequest = new ApiService.GetClothesRequest(userId);
-        retrofitclient.getClient().getClothes(clothesRequest).enqueue(new Callback<ApiService.ApiResponse>() {
+        ApiService.ApiInterface apiInterface = retrofitclient.getClient();
+        Call<ApiService.ApiResponse> call = apiInterface.getClothes(request);
+        call.enqueue(new Callback<ApiService.ApiResponse>() {
             @Override
             public void onResponse(Call<ApiService.ApiResponse> call, Response<ApiService.ApiResponse> response) {
+                showLoading(false);
                 if (response.isSuccessful() && response.body() != null) {
-                    ApiService.ApiResponse res = response.body();
-                    if ("success".equals(res.getStatus())) {
-                        List<clothitem> tempItems = res.getClothes();
-                        if (tempItems == null) tempItems = new ArrayList<>();
-                        final List<clothitem> wardrobeItems = tempItems;
-                        ApiService.GetOutfitsRequest outfitsRequest = new ApiService.GetOutfitsRequest(userId);
-                        retrofitclient.getClient().getOutfits(outfitsRequest).enqueue(new Callback<ApiService.GetOutfitsResponse>() {
-                            @Override
-                            public void onResponse(Call<ApiService.GetOutfitsResponse> call, Response<ApiService.GetOutfitsResponse> response) {
-                                if (response.isSuccessful() && response.body() != null) {
-                                    ApiService.GetOutfitsResponse resOut = response.body();
-                                    List<ApiService.OutfitSummary> tempOutfits = resOut.getOutfits();
-                                    if (tempOutfits == null) tempOutfits = new ArrayList<>();
-                                    final List<ApiService.OutfitSummary> outfits = tempOutfits;
-                                    getActivity().runOnUiThread(() ->
-                                            buildSelectionDialog(wardrobeItems, outfits, selectedItems, countView)
-                                    );
-                                } else {
-                                    getActivity().runOnUiThread(() ->
-                                            buildSelectionDialog(wardrobeItems, new ArrayList<>(), selectedItems, countView)
-                                    );
-                                }
-                            }
-
-                            @Override
-                            public void onFailure(Call<ApiService.GetOutfitsResponse> call, Throwable t) {
-                                getActivity().runOnUiThread(() ->
-                                        buildSelectionDialog(wardrobeItems, new ArrayList<>(), selectedItems, countView)
-                                );
-                            }
-                        });
+                    ApiService.ApiResponse apiResponse = response.body();
+                    if ("success".equals(apiResponse.getStatus())) {
+                        allItems = apiResponse.getClothes();
+                        if (allItems == null) allItems = new ArrayList<>();
+                        groupItemsByCategory();
+                        displayCurrentCategory();
                     } else {
-                        Toast.makeText(getContext(), res.getMessage(), Toast.LENGTH_SHORT).show();
+                        Toast.makeText(requireContext(), apiResponse.getMessage(), Toast.LENGTH_SHORT).show();
                     }
+                } else {
+                    Toast.makeText(requireContext(), "Server error", Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
             public void onFailure(Call<ApiService.ApiResponse> call, Throwable t) {
-                Toast.makeText(getContext(), "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                showLoading(false);
+                Toast.makeText(requireContext(), "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-    private void buildSelectionDialog(List<clothitem> wardrobeItems,
-                                      List<ApiService.OutfitSummary> outfits,
-                                      List<Object> selectedItems,
-                                      TextView countView) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-        builder.setTitle("Select Items & Outfits");
+    private void groupItemsByCategory() {
+        itemsByCategory.clear();
+        itemsByCategory.put("fresh", new ArrayList<>());
+        itemsByCategory.put("used", new ArrayList<>());
+        itemsByCategory.put("dirty", new ArrayList<>());
 
-        LinearLayout layout = new LinearLayout(getContext());
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(20, 20, 20, 20);
-        layout.setBackgroundColor(0xFF2A2A2A);
+        for (clothitem item : allItems) {
+            String status = getStatus(item);
+            itemsByCategory.get(status).add(item);
+        }
+    }
 
-        ScrollView scrollView = new ScrollView(getContext());
-        scrollView.addView(layout);
-        scrollView.setBackgroundColor(0xFF2A2A2A);
-        TextView tvItemsTitle = new TextView(getContext());
-        tvItemsTitle.setText("Clothing Items:");
-        tvItemsTitle.setTextSize(16);
-        tvItemsTitle.setTextColor(0xFFFFFFFF);
-        tvItemsTitle.setTypeface(tvItemsTitle.getTypeface(), android.graphics.Typeface.BOLD);
-        tvItemsTitle.setPadding(0, 0, 0, 8);
-        layout.addView(tvItemsTitle);
+    private String getStatus(clothitem item) {
+        int current = item.current_wear_count;
+        Integer max = item.max_wear_count;
+        if (current == 0) return "fresh";
+        if (max != null && current >= max) return "dirty";
+        return "used";
+    }
 
-        for (clothitem item : wardrobeItems) {
-            CheckBox checkBox = new CheckBox(getContext());
-            checkBox.setText(item.name + " (" + item.type + ")");
-            checkBox.setTextColor(0xFFFFFFFF);
-            checkBox.setTag(item);
-            checkBox.setChecked(selectedItems.contains(item));
-            checkBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                if (isChecked) {
-                    if (!selectedItems.contains(item)) selectedItems.add(item);
-                } else {
-                    selectedItems.remove(item);
-                }
-                countView.setText(selectedItems.size() + " items selected");
-            });
-            checkBox.setPadding(0, 4, 0, 4);
-            layout.addView(checkBox);
+    private void displayCurrentCategory() {
+        containerLaundry.removeAllViews();
+
+        List<clothitem> items = itemsByCategory.get(currentCategory);
+        int count = items == null ? 0 : items.size();
+
+
+        String title = currentCategory.substring(0, 1).toUpperCase() + currentCategory.substring(1);
+        tvCategoryTitle.setText(title);
+        tvCategoryCount.setText("(" + count + ")");
+
+        if (items == null || items.isEmpty()) {
+            showEmptyMessage();
+            return;
         }
 
-        // Outfits section
-        if (!outfits.isEmpty()) {
-            TextView tvOutfitsTitle = new TextView(getContext());
-            tvOutfitsTitle.setText("\nOutfits:");
-            tvOutfitsTitle.setTextSize(16);
-            tvOutfitsTitle.setTextColor(0xFFFFFFFF);
-            tvOutfitsTitle.setTypeface(tvOutfitsTitle.getTypeface(), android.graphics.Typeface.BOLD);
-            tvOutfitsTitle.setPadding(0, 16, 0, 8);
-            layout.addView(tvOutfitsTitle);
+        GridLayout grid = new GridLayout(requireContext());
+        grid.setColumnCount(2);
+        grid.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
 
-            for (ApiService.OutfitSummary outfit : outfits) {
-                CheckBox checkBox = new CheckBox(getContext());
-                int itemCount = outfit.getClothing_items() != null ? outfit.getClothing_items().size() : 0;
-                checkBox.setText(outfit.getName() + " (" + itemCount + " items)");
-                checkBox.setTextColor(0xFFFFFFFF);
-                checkBox.setTag(outfit);
-                checkBox.setChecked(selectedItems.contains(outfit));
-                checkBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                    if (isChecked) {
-                        if (!selectedItems.contains(outfit)) selectedItems.add(outfit);
-                    } else {
-                        selectedItems.remove(outfit);
-                    }
-                    countView.setText(selectedItems.size() + " items selected");
-                });
-                checkBox.setPadding(0, 4, 0, 4);
-                layout.addView(checkBox);
-            }
+        for (clothitem item : items) {
+            addItemToGrid(item, grid);
+        }
+        containerLaundry.addView(grid);
+    }
+
+    private void addItemToGrid(clothitem item, GridLayout grid) {
+        LayoutInflater inflater = LayoutInflater.from(requireContext());
+        View itemView = inflater.inflate(R.layout.griditemlaundry, grid, false);
+
+        ImageView imgItem = itemView.findViewById(R.id.imgItem);
+        TextView tvName = itemView.findViewById(R.id.tvItemName);
+        TextView tvWear = itemView.findViewById(R.id.tvItemWear);
+        ImageView ivSelected = itemView.findViewById(R.id.ivSelected);
+        CardView card = itemView.findViewById(R.id.cardItem);
+
+        tvName.setText(item.name);
+        String wearText = "Worn: " + item.current_wear_count;
+        if (item.max_wear_count != null) {
+            wearText += "/" + item.max_wear_count;
+        }
+        tvWear.setText(wearText);
+
+        if (item.imageUri != null && !item.imageUri.isEmpty()) {
+            Glide.with(requireContext())
+                    .load(item.imageUri)
+                    .placeholder(R.drawable.ic_clothing)
+                    .error(R.drawable.ic_clothing)
+                    .into(imgItem);
+        } else {
+            imgItem.setImageResource(R.drawable.ic_clothing);
         }
 
-        // Select All / Clear All buttons
-        LinearLayout buttonLayout = new LinearLayout(getContext());
-        buttonLayout.setOrientation(LinearLayout.HORIZONTAL);
-        buttonLayout.setPadding(0, 20, 0, 0);
+        updateItemSelection(itemView, selectedIds.contains(item.id));
 
-        Button btnSelectAll = new Button(getContext());
-        btnSelectAll.setText("Select All");
-        btnSelectAll.setBackgroundColor(0xFF9ED0FF);
-        btnSelectAll.setTextColor(0xFF000000);
-        btnSelectAll.setOnClickListener(v -> {
-            selectedItems.clear();
-            selectedItems.addAll(wardrobeItems);
-            selectedItems.addAll(outfits);
-            for (int i = 0; i < layout.getChildCount(); i++) {
-                View child = layout.getChildAt(i);
-                if (child instanceof CheckBox) {
-                    ((CheckBox) child).setChecked(true);
-                }
-            }
-            countView.setText(selectedItems.size() + " items selected");
-        });
-
-        Button btnClearAll = new Button(getContext());
-        btnClearAll.setText("Clear All");
-        btnClearAll.setBackgroundColor(0xFF6B6B6B);
-        btnClearAll.setTextColor(0xFFFFFFFF);
-        btnClearAll.setOnClickListener(v -> {
-            selectedItems.clear();
-            for (int i = 0; i < layout.getChildCount(); i++) {
-                View child = layout.getChildAt(i);
-                if (child instanceof CheckBox) {
-                    ((CheckBox) child).setChecked(false);
-                }
-            }
-            countView.setText(selectedItems.size() + " items selected");
-        });
-
-        buttonLayout.addView(btnSelectAll);
-        buttonLayout.addView(btnClearAll);
-        layout.addView(buttonLayout);
-
-        builder.setView(scrollView);
-        builder.setPositiveButton("Done", null);
-
-        AlertDialog dialog = builder.create();
-        dialog.show();
-    }
-
-    // ------------------------------------------------------------
-    //  DATE/TIME PICKER HELPERS
-    // ------------------------------------------------------------
-    private void updateDateButtonText(Button btn, Calendar calendar) {
-        SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy 'at' hh:mm a", Locale.getDefault());
-        btn.setText(sdf.format(calendar.getTime()));
-    }
-
-    private void showDateTimePicker(Calendar calendar, Button updateButton) {
-        DatePickerDialog datePicker = new DatePickerDialog(getContext(),
-                (view, year, month, day) -> {
-                    calendar.set(year, month, day);
-                    showTimePicker(calendar, updateButton);
-                },
-                calendar.get(Calendar.YEAR),
-                calendar.get(Calendar.MONTH),
-                calendar.get(Calendar.DAY_OF_MONTH)
-        );
-        datePicker.show();
-    }
-
-    private void showTimePicker(Calendar calendar, Button updateButton) {
-        TimePickerDialog timePicker = new TimePickerDialog(getContext(),
-                (view, hour, minute) -> {
-                    calendar.set(Calendar.HOUR_OF_DAY, hour);
-                    calendar.set(Calendar.MINUTE, minute);
-                    updateDateButtonText(updateButton, calendar);
-                },
-                calendar.get(Calendar.HOUR_OF_DAY),
-                calendar.get(Calendar.MINUTE),
-                false
-        );
-        timePicker.show();
-    }
-
-    // ------------------------------------------------------------
-    //  NOTIFICATION SCHEDULING (unchanged)
-    // ------------------------------------------------------------
-    private void scheduleNotification(washsched schedule) {
-        if (schedule.nextWashDate > 0 && schedule.notificationsEnabled) {
-            Context context = getContext();
-            if (context == null) return;
-
-            AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-            Intent intent = new Intent(context, notifreceiver.class);
-            intent.putExtra("schedule_id", schedule.serverId);
-            intent.putExtra("schedule_name", schedule.name);
-
-            PendingIntent pendingIntent = PendingIntent.getBroadcast(context,
-                    schedule.serverId, intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
-                            schedule.nextWashDate, pendingIntent);
-                } else {
-                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
-                            schedule.nextWashDate, pendingIntent);
-                    Log.w("WashTracker", "Cannot schedule exact alarm, permission not granted");
-                }
+        itemView.setOnClickListener(v -> {
+            if (selectedIds.contains(item.id)) {
+                selectedIds.remove(item.id);
+                updateItemSelection(itemView, false);
             } else {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
-                        schedule.nextWashDate, pendingIntent);
+                selectedIds.add(item.id);
+                updateItemSelection(itemView, true);
             }
+            updateWashButton();
+        });
+
+        itemView.setOnLongClickListener(v -> {
+            Intent intent = new Intent(requireActivity(), itemdetail.class);
+            intent.putExtra("item_id", item.id);
+            intent.putExtra("user_id", item.user_id);
+            startActivity(intent);
+            return true;
+        });
+
+        GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+        params.width = 0;
+        params.height = GridLayout.LayoutParams.WRAP_CONTENT;
+        params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+        params.setMargins(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
+        itemView.setLayoutParams(params);
+
+        grid.addView(itemView);
+    }
+
+    private void updateItemSelection(View itemView, boolean selected) {
+        ImageView ivSelected = itemView.findViewById(R.id.ivSelected);
+        ivSelected.setVisibility(selected ? View.VISIBLE : View.GONE);
+        itemView.findViewById(R.id.cardItem).setAlpha(selected ? 0.8f : 1.0f);
+    }
+
+    private void updateWashButton() {
+        int count = selectedIds.size();
+        tvSelectedCount.setText(count + " clothes selected");
+        btnWash.setEnabled(count > 0);
+        if (count > 0) {
+            bottomWashBar.setVisibility(View.VISIBLE);
+        } else {
+            bottomWashBar.setVisibility(View.GONE);
         }
     }
 
-    private int getCurrentUserId() {
-        SharedPreferences prefs = requireContext().getSharedPreferences("UserPrefs", Context.MODE_PRIVATE);
-        return prefs.getInt("user_id", -1);
+    private void showEmptyMessage() {
+        TextView empty = new TextView(requireContext());
+        empty.setText("No clothes in this category.");
+        empty.setTextColor(0xffffffff);
+        empty.setPadding(0, 64, 0, 0);
+        empty.setGravity(1);
+        containerLaundry.addView(empty);
     }
 
-    private void showError(String message) {
-        if (getActivity() != null) {
-            getActivity().runOnUiThread(() ->
-                    Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show()
-            );
-        }
+    private void showWashConfirmation() {
+        if (selectedIds.isEmpty()) return;
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Wash clothes")
+                .setMessage("Are you sure you want to wash " + selectedIds.size() + " selected items?")
+                .setPositiveButton("Wash", (dialog, which) -> washSelectedItems())
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void washSelectedItems() {
+        List<Integer> ids = new ArrayList<>(selectedIds);
+        ApiService.WashClothesRequest request = new ApiService.WashClothesRequest(userId, ids);
+
+        btnWash.setEnabled(false);
+        btnWash.setText("Washing...");
+
+        ApiService.ApiInterface apiInterface = retrofitclient.getClient();
+        Call<ApiService.SimpleResponse> call = apiInterface.washClothes(request);
+        call.enqueue(new Callback<ApiService.SimpleResponse>() {
+            @Override
+            public void onResponse(Call<ApiService.SimpleResponse> call, Response<ApiService.SimpleResponse> response) {
+                btnWash.setEnabled(true);
+                btnWash.setText("Wash");
+                if (response.isSuccessful() && response.body() != null) {
+                    ApiService.SimpleResponse res = response.body();
+                    if ("success".equals(res.getStatus())) {
+                        Toast.makeText(requireContext(), res.getMessage(), Toast.LENGTH_SHORT).show();
+                        selectedIds.clear();
+                        loadLaundryItems(); // refresh
+                    } else {
+                        Toast.makeText(requireContext(), res.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(requireContext(), "Server error", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ApiService.SimpleResponse> call, Throwable t) {
+                btnWash.setEnabled(true);
+                btnWash.setText("Wash");
+                Toast.makeText(requireContext(), "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void showLoading(boolean show) {
+        progressBar.setVisibility(show ? View.VISIBLE : View.GONE);
+        containerLaundry.setVisibility(show ? View.GONE : View.VISIBLE);
+    }
+
+    private int dpToPx(int dp) {
+        return (int) (dp * requireContext().getResources().getDisplayMetrics().density);
     }
 }

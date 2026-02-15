@@ -11,9 +11,13 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+
+import com.bumptech.glide.Glide;
+
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -46,11 +50,21 @@ public class outfitdetail extends AppCompatActivity {
         }
 
         toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setDisplayShowTitleEnabled(false);
-        }
+        toolbar.setTitle("");
+        toolbar.setNavigationIcon(R.drawable.backarrow);
+        toolbar.setNavigationOnClickListener(v -> finish());
+        toolbar.inflateMenu(R.menu.outfitdetailmenu);
+        toolbar.setOnMenuItemClickListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.menu_edit) {
+                showEditDialog();
+                return true;
+            } else if (id == R.id.menu_delete) {
+                deleteOutfit();
+                return true;
+            }
+            return false;
+        });
 
         tvOutfitName = findViewById(R.id.tvOutfitName);
         tvOutfitDesc = findViewById(R.id.tvOutfitDesc);
@@ -133,12 +147,22 @@ public class outfitdetail extends AppCompatActivity {
             TextView tvItemName = itemView.findViewById(R.id.tvItemName);
             TextView tvItemType = itemView.findViewById(R.id.tvItemType);
             TextView tvItemDesc = itemView.findViewById(R.id.tvItemDesc);
-
-            try {
-                imgItem.setImageURI(Uri.parse(item.imageUri));
-            } catch (Exception e) {
-                imgItem.setImageResource(android.R.drawable.ic_menu_gallery);
+            if (item.isDirty()) {
+                TextView dirtyLabel = new TextView(this);
+                dirtyLabel.setText("Dirty");
+                dirtyLabel.setTextColor(0xFFFF0000);
+                dirtyLabel.setTextSize(12);
+                dirtyLabel.setGravity(android.view.Gravity.CENTER);
+                if (itemView instanceof ViewGroup) {
+                    ((ViewGroup) itemView).addView(dirtyLabel);
+                }
             }
+            Glide.with(outfitdetail.this)
+                    .load(item.imageUri)
+                    .placeholder(android.R.drawable.ic_menu_gallery)
+                    .error(android.R.drawable.ic_menu_gallery)
+                    .centerCrop()
+                    .into(imgItem);
             tvItemName.setText(item.name);
             tvItemType.setText(item.type);
             tvItemDesc.setText(item.description);
@@ -166,12 +190,16 @@ public class outfitdetail extends AppCompatActivity {
     }
 
     private void confirmWearOutfit() {
-        new AlertDialog.Builder(this)
-                .setTitle("Wear Outfit")
-                .setMessage("Are you sure you want to mark this outfit as worn today?\n\nOutfit: " + currentOutfit.getName())
-                .setPositiveButton("Yes, I wore it", (dialog, which) -> wearOutfit())
-                .setNegativeButton("Cancel", null)
-                .show();
+        if (hasDirtyItems()) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Dirty Items")
+                    .setMessage("One or more clothing items in this outfit are dirty. Proceed to wear anyway?")
+                    .setPositiveButton("Yes", (dialog, which) -> wearOutfit())
+                    .setNegativeButton("No", null)
+                    .show();
+        } else {
+            wearOutfit();
+        }
     }
 
     private void wearOutfit() {
@@ -183,9 +211,11 @@ public class outfitdetail extends AppCompatActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     ApiService.SimpleResponse res = response.body();
                     if ("success".equals(res.getStatus())) {
-                        // Update local object
                         currentOutfit.setTimes_worn(currentOutfit.getTimes_worn() + 1);
                         currentOutfit.setLast_worn_timestamp(System.currentTimeMillis());
+                        for (clothitem item : currentOutfit.getClothing_items()) {
+                            item.current_wear_count++;
+                        }
                         runOnUiThread(() -> {
                             updateOutfitDetails();
                             Toast.makeText(outfitdetail.this, "Wearing " + currentOutfit.getName() + "!", Toast.LENGTH_SHORT).show();
@@ -203,29 +233,6 @@ public class outfitdetail extends AppCompatActivity {
         });
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.outfitdetailmenu, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-
-        if (id == android.R.id.home) {
-            finish();
-            return true;
-        } else if (id == R.id.menu_edit) {
-            showEditDialog();
-            return true;
-        } else if (id == R.id.menu_delete) {
-            deleteOutfit();
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
 
     private void showEditDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -378,8 +385,7 @@ public class outfitdetail extends AppCompatActivity {
 
     private void editClothingItems() {
         int user_Id = getCurrentUserId();
-        ApiService.GetClothesRequest request = new ApiService.GetClothesRequest(user_Id);
-        retrofitclient.getClient().getClothes(request).enqueue(new Callback<ApiService.ApiResponse>() {
+        ApiService.GetClothesRequest request = new ApiService.GetClothesRequest(user_Id, "", "all", "all", "all");        retrofitclient.getClient().getClothes(request).enqueue(new Callback<ApiService.ApiResponse>() {
             @Override
             public void onResponse(Call<ApiService.ApiResponse> call, Response<ApiService.ApiResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -406,8 +412,19 @@ public class outfitdetail extends AppCompatActivity {
 
     private void showClothingItemPicker(List<clothitem> wardrobeItems) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Edit Clothing Items");
 
+        // Custom title: white text, same gray as content, left-aligned
+        TextView titleView = new TextView(this);
+        titleView.setText("Edit Clothing Items");
+        titleView.setTextColor(0xFFFFFFFF);                // White
+        titleView.setBackgroundColor(0xFF2A2A2A);          // Dark gray (same as content)
+        titleView.setTextSize(18);
+        titleView.setTypeface(null, Typeface.BOLD);
+        titleView.setGravity(android.view.Gravity.START | android.view.Gravity.CENTER_VERTICAL);
+        titleView.setPadding(50, 40, 50, 40);
+        builder.setCustomTitle(titleView);
+
+        // Scrollable content area (already gray)
         ScrollView scrollView = new ScrollView(this);
         LinearLayout mainLayout = new LinearLayout(this);
         mainLayout.setOrientation(LinearLayout.VERTICAL);
@@ -424,9 +441,8 @@ public class outfitdetail extends AppCompatActivity {
             emptyText.setPadding(50, 100, 50, 100);
             mainLayout.addView(emptyText);
         } else {
-            // Track selected states based on current outfit items
             List<Boolean> selectedStates = new ArrayList<>();
-            List<Integer> clothingItemIds = new ArrayList<>(); // store server IDs
+            List<Integer> clothingItemIds = new ArrayList<>();
 
             for (clothitem item : wardrobeItems) {
                 clothingItemIds.add(item.id);
@@ -475,12 +491,12 @@ public class outfitdetail extends AppCompatActivity {
                 TextView tvItemName = itemView.findViewById(R.id.tvItemName);
                 TextView tvItemType = itemView.findViewById(R.id.tvItemType);
 
-                try {
-                    imgClothingItem.setImageURI(Uri.parse(item.imageUri));
-                } catch (Exception e) {
-                    imgClothingItem.setImageResource(android.R.drawable.ic_menu_gallery);
-                    imgClothingItem.setBackgroundColor(0xFF444444);
-                }
+                Glide.with(outfitdetail.this)
+                        .load(item.imageUri)
+                        .placeholder(android.R.drawable.ic_menu_gallery)
+                        .error(android.R.drawable.ic_menu_gallery)
+                        .centerCrop()
+                        .into(imgClothingItem);
 
                 tvItemName.setText(item.name);
                 tvItemType.setText(item.type + " (" + item.area + ")");
@@ -520,7 +536,6 @@ public class outfitdetail extends AppCompatActivity {
             builder.setView(scrollView);
             builder.setPositiveButton("Update Items", (dialog, which) -> {
                 if (wardrobeItems.isEmpty()) return;
-                // Build list of selected clothing item IDs
                 List<Integer> selectedIds = new ArrayList<>();
                 for (int i = 0; i < selectedStates.size(); i++) {
                     if (selectedStates.get(i)) {
@@ -538,29 +553,61 @@ public class outfitdetail extends AppCompatActivity {
 
         AlertDialog dialog = builder.create();
         dialog.show();
+
+        View positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        if (positiveButton != null) {
+            View buttonBar = (View) positiveButton.getParent();
+            if (buttonBar != null) {
+                buttonBar.setBackgroundColor(0xFF2A2A2A);
+            }
+        }
+
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(0xFF9ED0FF);
         dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(0xFFAAAAAA);
         dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
     }
 
     private void confirmUpdateClothingItems(List<Integer> selectedIds) {
-        StringBuilder selectedItemsList = new StringBuilder();
-        int count = 0;
-        for (Integer id : selectedIds) {
-            if (count >= 3) break;
-            // We need names – we can either pass the list of IDs and show generic message or re-fetch names.
-            // Simpler: just show count.
-            count++;
-        }
         String message = "Are you sure you want to update the clothing items in this outfit?\n\n" +
                 "Selected items: " + selectedIds.size() + " item(s)";
 
-        new AlertDialog.Builder(this)
-                .setTitle("Confirm Clothing Items Update")
-                .setMessage(message)
-                .setPositiveButton("Yes, Update Items", (dialog, which) -> updateClothingItems(selectedIds))
-                .setNegativeButton("Cancel", null)
-                .show();
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+
+        TextView titleView = new TextView(this);
+        titleView.setText("Confirm Clothing Items Update");
+        titleView.setTextColor(0xFFFFFFFF);
+        titleView.setBackgroundColor(0x00000000);
+        titleView.setTextSize(18);
+        titleView.setTypeface(null, Typeface.BOLD);
+        titleView.setGravity(android.view.Gravity.START | android.view.Gravity.CENTER_VERTICAL);
+        titleView.setPadding(50, 40, 50, 40);
+        builder.setCustomTitle(titleView);
+
+        builder.setMessage(message);
+        builder.setPositiveButton("Yes, Update Items", (dialog, which) -> updateClothingItems(selectedIds));
+        builder.setNegativeButton("Cancel", null);
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        TextView messageView = dialog.findViewById(android.R.id.message);
+        if (messageView != null) {
+            messageView.setTextColor(0xFFFFFFFF);
+            messageView.setBackgroundColor(0x00000000);
+        }
+
+        View positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        if (positiveButton != null) {
+            View buttonBar = (View) positiveButton.getParent();
+            if (buttonBar != null) {
+                buttonBar.setBackgroundColor(0xFF2A2A2A);
+            }
+        }
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(0xFF9ED0FF);
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(0xFFAAAAAA);
+
+        dialog.getWindow().setBackgroundDrawable(new ColorDrawable(0xFF2A2A2A));
     }
 
     private void updateClothingItems(List<Integer> clothingIds) {
@@ -624,7 +671,13 @@ public class outfitdetail extends AppCompatActivity {
                 .setNegativeButton("Cancel", null)
                 .show();
     }
-
+    private boolean hasDirtyItems() {
+        if (currentOutfit == null || currentOutfit.getClothing_items() == null) return false;
+        for (clothitem item : currentOutfit.getClothing_items()) {
+            if (item.isDirty()) return true;
+        }
+        return false;
+    }
     private int getCurrentUserId() {
         SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
         return prefs.getInt("user_id", -1);

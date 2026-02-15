@@ -1,3 +1,40 @@
 <resources>
     <string name="app_name">MyCabinet</string>
+
+    <string-array name="filter_status_array">
+        <item>All</item>
+        <item>Clean</item>
+        <item>Used</item>
+        <item>Dirty</item>
+    </string-array>
+
+    <string-array name="filter_area_array">
+        <item>All</item>
+        <item>Top</item>
+        <item>Bottom</item>
+        <item>Headwear</item>
+        <item>Footwear</item>
+        <item>Accessory</item>
+    </string-array>
+
+    <string-array name="filter_type_array">
+        <item>All</item>
+        <item>Polo</item>
+        <item>T-Shirt</item>
+        <item>Long Sleeve</item>
+        <item>Jacket</item>
+        <item>Jeans</item>
+        <item>Shorts</item>
+        <item>Slacks</item>
+        <item>Sneakers</item>
+        <item>Sandals</item>
+        <item>Shoes</item>
+        <item>Hat</item>
+        <item>Cap</item>
+        <item>Beanie</item>
+        <item>Belt</item>
+        <item>Watch</item>
+        <item>Necklace</item>
+        <item>Other</item>
+    </string-array>
 </resources>

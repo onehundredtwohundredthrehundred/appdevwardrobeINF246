@@ -1,17 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Theme.AppdevwardrobeINF246" parent="Theme.AppCompat.Light.NoActionBar">
-        <!-- Primary brand color. -->
+    <style name="Theme.AppdevwardrobeINF246" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">#9ED0FF</item>
         <item name="colorPrimaryVariant">#7DB8FF</item>
         <item name="colorOnPrimary">@android:color/black</item>
-
-        <!-- Customize your theme here. -->
         <item name="android:windowBackground">#121212</item>
         <item name="android:textColor">@android:color/white</item>
         <item name="android:textColorHint">#AAAAAA</item>
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+    </style>
 
+    <!-- NoActionBar variant for activities that use a custom toolbar -->
+    <style name="Theme.AppdevwardrobeINF246.NoActionBar" parent="Theme.AppdevwardrobeINF246">
+        <item name="windowActionBar">false</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:windowNoTitle">true</item>
     </style>
 </resources>

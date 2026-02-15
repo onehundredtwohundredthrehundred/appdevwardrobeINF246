@@ -52,6 +52,15 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"/>
 
+        <EditText
+            android:id="@+id/etMaxWear"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Max Wear Count"
+            android:inputType="number"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#FFFFFF"/>
+
         <Spinner
             android:id="@+id/spinnerArea"
             android:layout_width="match_parent"

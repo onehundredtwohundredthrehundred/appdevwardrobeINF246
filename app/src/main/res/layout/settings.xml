@@ -31,8 +31,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Sign Out"
-            android:backgroundTint="#FF9800"
-            android:textColor="@android:color/white"
+            android:backgroundTint="#9ED0FF"
+            android:textColor="@android:color/black"
             android:layout_marginTop="16dp"
             android:layout_marginBottom="8dp" />
 
@@ -44,14 +44,6 @@
             android:backgroundTint="#FF4444"
             android:textColor="@android:color/white"
             android:layout_marginBottom="24dp" />
-
-        <Button
-            android:id="@+id/btnClearCache"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Clear Cache"
-            android:backgroundTint="#9E9E9E"
-            android:layout_marginBottom="8dp" />
 
         <View
             android:layout_width="match_parent"
@@ -77,8 +69,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Developed by INF246 as a Requirement for the Subject
-            Application Development"
+            android:text="Developed by INF246 as a Requirement for the Subject Application Development"
             android:textSize="14sp"
             android:layout_marginBottom="24dp" />
 

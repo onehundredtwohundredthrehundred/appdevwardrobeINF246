@@ -68,7 +68,6 @@ public class mainapp extends AppCompatActivity {
         viewPager.setCurrentItem(2);
         bottomNavigationView.setSelectedItemId(R.id.nav_wash);
     }
-
     private class ViewPagerAdapter extends FragmentStateAdapter {
         public ViewPagerAdapter(FragmentActivity fragmentActivity) {
             super(fragmentActivity);

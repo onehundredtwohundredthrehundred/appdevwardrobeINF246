@@ -20,6 +20,7 @@ import java.util.Locale;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import com.bumptech.glide.Glide;
 
 public class frag2 extends Fragment {
 
@@ -126,11 +127,12 @@ public class frag2 extends Fragment {
                 imageView.setLayoutParams(params);
                 imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
 
-                try {
-                    imageView.setImageURI(Uri.parse(item.imageUri));
-                } catch (Exception e) {
-                    imageView.setImageResource(android.R.drawable.ic_menu_gallery);
-                }
+                Glide.with(getContext())
+                        .load(item.imageUri)
+                        .placeholder(android.R.drawable.ic_menu_gallery)
+                        .error(android.R.drawable.ic_menu_gallery)
+                        .centerCrop()
+                        .into(imageView);
                 imageView.setBackgroundColor(getResources().getColor(android.R.color.darker_gray));
 
                 TextView itemLabel = new TextView(getContext());
@@ -146,6 +148,16 @@ public class frag2 extends Fragment {
 
                 itemContainer.addView(imageView);
                 itemContainer.addView(itemLabel);
+
+
+                if (item.isDirty()) {
+                    TextView dirtyLabel = new TextView(getContext());
+                    dirtyLabel.setText("Dirty");
+                    dirtyLabel.setTextColor(0xFFFF0000);
+                    dirtyLabel.setTextSize(10);
+                    dirtyLabel.setGravity(android.view.Gravity.CENTER);
+                    itemContainer.addView(dirtyLabel);
+                }
 
                 GridLayout.LayoutParams containerParams = new GridLayout.LayoutParams();
                 containerParams.width = GridLayout.LayoutParams.WRAP_CONTENT;
@@ -169,12 +181,8 @@ public class frag2 extends Fragment {
         gridOutfitItems.setColumnCount(columns);
 
         btnWearOutfit.setOnClickListener(v -> {
-            new androidx.appcompat.app.AlertDialog.Builder(getContext())
-                    .setTitle("Wear Outfit")
-                    .setMessage("Are you sure you want to mark this outfit as worn today?\n\nOutfit: " + outfit.getName())
-                    .setPositiveButton("Yes, I wore it", (dialog, which) -> wearOutfit(outfit.getId(), position))
-                    .setNegativeButton("Cancel", null)
-                    .show();
+
+            wearOutfit(outfit.getId(), position);
         });
 
         btnDeleteOutfit.setOnClickListener(v -> {
@@ -203,10 +211,36 @@ public class frag2 extends Fragment {
         }
     }
 
+
     private void wearOutfit(int outfit_Id, int position) {
+        List<clothitem> items = outfitList.get(position).getClothing_items();
+        boolean hasDirty = false;
+        if (items != null) {
+            for (clothitem item : items) {
+                if (item.isDirty()) {
+                    hasDirty = true;
+                    break;
+                }
+            }
+        }
+        if (hasDirty) {
+            new androidx.appcompat.app.AlertDialog.Builder(getContext())
+                    .setTitle("Dirty Items")
+                    .setMessage("One or more clothing items in this outfit are dirty. Proceed to wear anyway?")
+                    .setPositiveButton("Yes", (dialog, which) -> performWearOutfit(outfit_Id, position))
+                    .setNegativeButton("No", null)
+                    .show();
+        } else {
+            performWearOutfit(outfit_Id, position);
+        }
+    }
+
+
+    private void performWearOutfit(int outfit_Id, int position) {
         int user_Id = getCurrentUserId();
         ApiService.WearOutfitRequest request = new ApiService.WearOutfitRequest(outfit_Id, user_Id);
         retrofitclient.getClient().wearOutfit(request).enqueue(new Callback<ApiService.SimpleResponse>() {
+
             @Override
             public void onResponse(Call<ApiService.SimpleResponse> call, Response<ApiService.SimpleResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -215,9 +249,15 @@ public class frag2 extends Fragment {
                         ApiService.OutfitSummary outfit = outfitList.get(position);
                         outfit.setTimes_worn(outfit.getTimes_worn() + 1);
                         outfit.setLast_worn_timestamp(System.currentTimeMillis());
+
+                        if (outfit.getClothing_items() != null) {
+                            for (clothitem item : outfit.getClothing_items()) {
+                                item.current_wear_count++;
+                            }
+                        }
                         getActivity().runOnUiThread(() -> {
                             displayOutfits();
-                            Toast.makeText(getContext(), "Wearing recorded!", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(getContext(), "Wearing Recorded!", Toast.LENGTH_SHORT).show();
                         });
                     } else {
                         Toast.makeText(getContext(), res.getMessage(), Toast.LENGTH_SHORT).show();

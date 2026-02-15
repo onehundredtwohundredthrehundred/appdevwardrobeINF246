@@ -4,11 +4,15 @@ import com.google.gson.annotations.SerializedName;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
+import okhttp3.MultipartBody;
 import retrofit2.Call;
 import retrofit2.http.Body;
+import retrofit2.http.Multipart;
 import retrofit2.http.POST;
+import retrofit2.http.Part;
 
 public class ApiService {
 
@@ -87,18 +91,34 @@ public class ApiService {
         public void setUsername(String username) { this.username = username; }
     }
 
+
+
+
     public static class GetClothesRequest {
         private int user_id;
+        private String search;
+        private String filter_status;
+        private String filter_area;
+        private String filter_type;
 
-        public GetClothesRequest(int user_id) {
+        public GetClothesRequest(int user_id, String search, String filter_status, String filter_area, String filter_type) {
             this.user_id = user_id;
+            this.search = search;
+            this.filter_status = filter_status;
+            this.filter_area = filter_area;
+            this.filter_type = filter_type;
         }
 
         public int getUser_id() { return user_id; }
         public void setUser_id(int user_id) { this.user_id = user_id; }
+
+        public String getSearch() { return search; }
+        public void setSearch(String search) { this.search = search; }
+
+        public String getFilter_status() { return filter_status; }
+        public void setFilter_status(String filter_status) { this.filter_status = filter_status; }
     }
 
-    // NEW: Get single item request
     public static class GetItemRequest {
         public int id;
         public int user_id;
@@ -115,7 +135,6 @@ public class ApiService {
         public void setUser_id(int user_id) { this.user_id = user_id; }
     }
 
-    // NEW: Get single item response
     public static class GetItemResponse {
         private String status;
         private String message;
@@ -138,20 +157,21 @@ public class ApiService {
         private String area;
         private String description;
         private String image_uri;
+        private Integer max_wear_count;
 
         public AddClothRequest(int user_id, String name, String type, String area,
-                               String description, String image_uri) {
+                               String description, String image_uri, Integer max_wear_count) {
             this.user_id = user_id;
             this.name = name;
             this.type = type;
             this.area = area;
             this.description = description;
             this.image_uri = image_uri;
+            this.max_wear_count = max_wear_count;
         }
 
-        public AddClothRequest() {} // Default constructor for flexibility
+        public AddClothRequest() {}
 
-        // Getters and setters
         public int getUser_id() { return user_id; }
         public void setUser_id(int user_id) { this.user_id = user_id; }
 
@@ -169,6 +189,9 @@ public class ApiService {
 
         public String getImage_uri() { return image_uri; }
         public void setImage_uri(String image_uri) { this.image_uri = image_uri; }
+
+        public Integer getMax_wear_count() { return max_wear_count; }
+        public void setMax_wear_count(Integer max_wear_count) { this.max_wear_count = max_wear_count; }
     }
 
     public static class UpdateClothRequest {
@@ -179,11 +202,14 @@ public class ApiService {
         public String area;
         public String description;
         public String image_uri;
+        public Integer max_wear_count;
+        public Integer current_wear_count;
 
-        public UpdateClothRequest() {} // Default constructor
+        public UpdateClothRequest() {}
 
         public UpdateClothRequest(int id, int user_id, String name, String type, String area,
-                                  String description, String image_uri) {
+                                  String description, String image_uri,
+                                  Integer max_wear_count, Integer current_wear_count) {
             this.id = id;
             this.user_id = user_id;
             this.name = name;
@@ -191,9 +217,10 @@ public class ApiService {
             this.area = area;
             this.description = description;
             this.image_uri = image_uri;
+            this.max_wear_count = max_wear_count;
+            this.current_wear_count = current_wear_count;
         }
 
-        // Getters and setters
         public int getId() { return id; }
         public void setId(int id) { this.id = id; }
 
@@ -214,13 +241,19 @@ public class ApiService {
 
         public String getImage_uri() { return image_uri; }
         public void setImage_uri(String image_uri) { this.image_uri = image_uri; }
+
+        public Integer getMax_wear_count() { return max_wear_count; }
+        public void setMax_wear_count(Integer max_wear_count) { this.max_wear_count = max_wear_count; }
+
+        public Integer getCurrent_wear_count() { return current_wear_count; }
+        public void setCurrent_wear_count(Integer current_wear_count) { this.current_wear_count = current_wear_count; }
     }
 
     public static class DeleteClothRequest {
         public int id;
         public int user_id;
 
-        public DeleteClothRequest() {} // Default constructor
+        public DeleteClothRequest() {}
 
         public DeleteClothRequest(int id, int user_id) {
             this.id = id;
@@ -272,6 +305,9 @@ public class ApiService {
         public void setUsername(String username) { this.username = username; }
     }
 
+
+
+
     public static class GetOutfitsRequest {
         private int user_id;
         public GetOutfitsRequest(int user_id) { this.user_id = user_id; }
@@ -280,6 +316,15 @@ public class ApiService {
     }
 
     public static class OutfitSummary {
+        private int id;
+        private String name;
+        private String description;
+        private int times_worn;
+        private long last_worn_timestamp;
+        private String created_at;
+        private String updated_at;
+        private List<clothitem> clothing_items;
+
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
@@ -292,16 +337,7 @@ public class ApiService {
         public int hashCode() {
             return Objects.hash(id);
         }
-        private int id;
-        private String name;
-        private String description;
-        private int times_worn;
-        private long last_worn_timestamp;
-        private String created_at;
-        private String updated_at;
-        private List<clothitem> clothing_items;   // full items for preview
 
-        // Getters and setters (required for Gson)
         public int getId() { return id; }
         public void setId(int id) { this.id = id; }
         public String getName() { return name; }
@@ -333,7 +369,6 @@ public class ApiService {
         public void setOutfits(List<OutfitSummary> outfits) { this.outfits = outfits; }
     }
 
-    // Get single outfit (full detail)
     public static class GetOutfitRequest {
         private int outfit_id;
         private int user_id;
@@ -367,7 +402,6 @@ public class ApiService {
         private String updated_at;
         private List<clothitem> clothing_items;
 
-        // Getters and setters (same as OutfitSummary)
         public int getId() { return id; }
         public void setId(int id) { this.id = id; }
         public String getName() { return name; }
@@ -386,7 +420,6 @@ public class ApiService {
         public void setClothing_items(List<clothitem> clothing_items) { this.clothing_items = clothing_items; }
     }
 
-    // Add outfit
     public static class AddOutfitRequest {
         private int user_id;
         private String name;
@@ -399,7 +432,6 @@ public class ApiService {
             this.description = description;
             this.clothing_ids = clothing_ids;
         }
-        // Getters and setters...
         public int getUser_id() { return user_id; }
         public void setUser_id(int user_id) { this.user_id = user_id; }
         public String getName() { return name; }
@@ -410,13 +442,12 @@ public class ApiService {
         public void setClothing_ids(List<Integer> clothing_ids) { this.clothing_ids = clothing_ids; }
     }
 
-    // Update outfit
     public static class UpdateOutfitRequest {
         private int outfit_id;
         private int user_id;
-        private String name;          // optional
-        private String description;   // optional
-        private List<Integer> clothing_ids; // optional
+        private String name;
+        private String description;
+        private List<Integer> clothing_ids;
 
         public UpdateOutfitRequest(int outfit_id, int user_id) {
             this.outfit_id = outfit_id;
@@ -462,187 +493,40 @@ public class ApiService {
         public String getMessage() { return message; }
         public void setMessage(String message) { this.message = message; }
     }
-    // ---------- WASH TRACKER API DTOs ----------
 
-    // Request: get all schedules for a user
-    public static class GetWashSchedulesRequest {
-        @SerializedName("user_id")
-        private int userId;
-        public GetWashSchedulesRequest(int userId) { this.userId = userId; }
-        public int getUserId() { return userId; }
-        public void setUserId(int userId) { this.userId = userId; }
-    }
-
-    // Summary of a wash schedule (for the list view) – fields public for easy access
-    public static class WashScheduleSummary {
-        @SerializedName("id") public int serverId;
-        @SerializedName("name") public String name;
-        @SerializedName("max_wears_before_wash") public int maxWearsBeforeWash;
-        @SerializedName("next_wash_date") public Long nextWashDate;
-        @SerializedName("is_recurring") public boolean isRecurring;
-        @SerializedName("recurrence_days") public int recurrenceDays;
-        @SerializedName("notifications_enabled") public boolean notificationsEnabled;
-        @SerializedName("last_notification_sent") public long lastNotificationSent;
-        @SerializedName("created_at") public String createdAt;
-        @SerializedName("updated_at") public String updatedAt;
-        @SerializedName("items") public List<clothitem> items;
-        @SerializedName("outfits") public List<OutfitSummary> outfits;
-    }
-
-    public static class GetWashSchedulesResponse {
-        @SerializedName("status") private String status;
-        @SerializedName("message") private String message;
-        @SerializedName("schedules") private List<WashScheduleSummary> schedules;
+    // ------------------------------------------------------------------------
+    // Image upload response
+    // ------------------------------------------------------------------------
+    public static class ImageUploadResponse {
+        private String status;
+        private String message;
+        @SerializedName("image_url")
+        private String imageUrl;
 
         public String getStatus() { return status; }
         public void setStatus(String status) { this.status = status; }
+
         public String getMessage() { return message; }
         public void setMessage(String message) { this.message = message; }
-        public List<WashScheduleSummary> getSchedules() { return schedules; }
-        public void setSchedules(List<WashScheduleSummary> schedules) { this.schedules = schedules; }
+
+        public String getImageUrl() { return imageUrl; }
+        public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
     }
+    public static class WashClothesRequest {
+        private int user_id;
+        private List<Integer> clothing_ids;
 
-    // Request: get a single schedule (detail view)
-    public static class GetWashScheduleRequest {
-        @SerializedName("schedule_id") private int scheduleId;
-        @SerializedName("user_id") private int userId;
-        public GetWashScheduleRequest(int scheduleId, int userId) {
-            this.scheduleId = scheduleId;
-            this.userId = userId;
-        }
-        public int getScheduleId() { return scheduleId; }
-        public void setScheduleId(int scheduleId) { this.scheduleId = scheduleId; }
-        public int getUserId() { return userId; }
-        public void setUserId(int userId) { this.userId = userId; }
-    }
-
-    // Full detail of a schedule (reuse summary)
-    public static class WashScheduleDetail extends WashScheduleSummary {}
-
-    public static class GetWashScheduleResponse {
-        @SerializedName("status") private String status;
-        @SerializedName("message") private String message;
-        @SerializedName("schedule") private WashScheduleDetail schedule;
-
-        public String getStatus() { return status; }
-        public void setStatus(String status) { this.status = status; }
-        public String getMessage() { return message; }
-        public void setMessage(String message) { this.message = message; }
-        public WashScheduleDetail getSchedule() { return schedule; }
-        public void setSchedule(WashScheduleDetail schedule) { this.schedule = schedule; }
-    }
-
-    // Request: create a new wash schedule
-    public static class AddWashScheduleRequest {
-        @SerializedName("user_id") private int userId;
-        @SerializedName("name") private String name;
-        @SerializedName("max_wears_before_wash") private int maxWearsBeforeWash;
-        @SerializedName("next_wash_date") private Long nextWashDate;
-        @SerializedName("is_recurring") private int isRecurring; // 0/1
-        @SerializedName("recurrence_days") private int recurrenceDays;
-        @SerializedName("notifications_enabled") private int notificationsEnabled;
-        @SerializedName("item_ids") private List<Integer> itemIds;
-        @SerializedName("outfit_ids") private List<Integer> outfitIds;
-
-        public AddWashScheduleRequest(int userId, String name, int maxWearsBeforeWash) {
-            this.userId = userId;
-            this.name = name;
-            this.maxWearsBeforeWash = maxWearsBeforeWash;
-            this.isRecurring = 0;
-            this.recurrenceDays = 7;
-            this.notificationsEnabled = 1;
-            this.itemIds = new ArrayList<>();
-            this.outfitIds = new ArrayList<>();
+        public WashClothesRequest(int user_id, List<Integer> clothing_ids) {
+            this.user_id = user_id;
+            this.clothing_ids = clothing_ids;
         }
 
-        // Getters and setters
-        public int getUserId() { return userId; }
-        public void setUserId(int userId) { this.userId = userId; }
-        public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
-        public int getMaxWearsBeforeWash() { return maxWearsBeforeWash; }
-        public void setMaxWearsBeforeWash(int maxWearsBeforeWash) { this.maxWearsBeforeWash = maxWearsBeforeWash; }
-        public Long getNextWashDate() { return nextWashDate; }
-        public void setNextWashDate(Long nextWashDate) { this.nextWashDate = nextWashDate; }
-        public int getIsRecurring() { return isRecurring; }
-        public void setIsRecurring(int isRecurring) { this.isRecurring = isRecurring; }
-        public int getRecurrenceDays() { return recurrenceDays; }
-        public void setRecurrenceDays(int recurrenceDays) { this.recurrenceDays = recurrenceDays; }
-        public int getNotificationsEnabled() { return notificationsEnabled; }
-        public void setNotificationsEnabled(int notificationsEnabled) { this.notificationsEnabled = notificationsEnabled; }
-        public List<Integer> getItemIds() { return itemIds; }
-        public void setItemIds(List<Integer> itemIds) { this.itemIds = itemIds; }
-        public List<Integer> getOutfitIds() { return outfitIds; }
-        public void setOutfitIds(List<Integer> outfitIds) { this.outfitIds = outfitIds; }
+        public int getUser_id() { return user_id; }
+        public void setUser_id(int user_id) { this.user_id = user_id; }
+        public List<Integer> getClothing_ids() { return clothing_ids; }
+        public void setClothing_ids(List<Integer> clothing_ids) { this.clothing_ids = clothing_ids; }
     }
 
-    public static class UpdateWashScheduleRequest {
-        @SerializedName("schedule_id") private int scheduleId;
-        @SerializedName("user_id") private int userId;
-        @SerializedName("name") private String name;               // optional
-        @SerializedName("max_wears_before_wash") private Integer maxWearsBeforeWash; // optional
-        @SerializedName("next_wash_date") private Long nextWashDate; // optional
-        @SerializedName("is_recurring") private Integer isRecurring; // optional
-        @SerializedName("recurrence_days") private Integer recurrenceDays; // optional
-        @SerializedName("notifications_enabled") private Integer notificationsEnabled; // optional
-        @SerializedName("item_ids") private List<Integer> itemIds;    // optional – if provided, REPLACES all items
-        @SerializedName("outfit_ids") private List<Integer> outfitIds; // optional – if provided, REPLACES all outfits
-
-        public UpdateWashScheduleRequest(int scheduleId, int userId) {
-            this.scheduleId = scheduleId;
-            this.userId = userId;
-        }
-
-        // Getters and setters
-        public int getScheduleId() { return scheduleId; }
-        public void setScheduleId(int scheduleId) { this.scheduleId = scheduleId; }
-        public int getUserId() { return userId; }
-        public void setUserId(int userId) { this.userId = userId; }
-        public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
-        public Integer getMaxWearsBeforeWash() { return maxWearsBeforeWash; }
-        public void setMaxWearsBeforeWash(Integer maxWearsBeforeWash) { this.maxWearsBeforeWash = maxWearsBeforeWash; }
-        public Long getNextWashDate() { return nextWashDate; }
-        public void setNextWashDate(Long nextWashDate) { this.nextWashDate = nextWashDate; }
-        public Integer getIsRecurring() { return isRecurring; }
-        public void setIsRecurring(Integer isRecurring) { this.isRecurring = isRecurring; }
-        public Integer getRecurrenceDays() { return recurrenceDays; }
-        public void setRecurrenceDays(Integer recurrenceDays) { this.recurrenceDays = recurrenceDays; }
-        public Integer getNotificationsEnabled() { return notificationsEnabled; }
-        public void setNotificationsEnabled(Integer notificationsEnabled) { this.notificationsEnabled = notificationsEnabled; }
-        public List<Integer> getItemIds() { return itemIds; }
-        public void setItemIds(List<Integer> itemIds) { this.itemIds = itemIds; }
-        public List<Integer> getOutfitIds() { return outfitIds; }
-        public void setOutfitIds(List<Integer> outfitIds) { this.outfitIds = outfitIds; }
-    }
-
-    // Request: delete a wash schedule
-    public static class DeleteWashScheduleRequest {
-        @SerializedName("schedule_id") private int scheduleId;
-        @SerializedName("user_id") private int userId;
-        public DeleteWashScheduleRequest(int scheduleId, int userId) {
-            this.scheduleId = scheduleId;
-            this.userId = userId;
-        }
-        public int getScheduleId() { return scheduleId; }
-        public void setScheduleId(int scheduleId) { this.scheduleId = scheduleId; }
-        public int getUserId() { return userId; }
-        public void setUserId(int userId) { this.userId = userId; }
-    }
-
-    // Request: mark a schedule as washed
-    public static class MarkWashScheduleRequest {
-        @SerializedName("schedule_id") private int scheduleId;
-        @SerializedName("user_id") private int userId;
-        public MarkWashScheduleRequest(int scheduleId, int userId) {
-            this.scheduleId = scheduleId;
-            this.userId = userId;
-        }
-        public int getScheduleId() { return scheduleId; }
-        public void setScheduleId(int scheduleId) { this.scheduleId = scheduleId; }
-        public int getUserId() { return userId; }
-        public void setUserId(int userId) { this.userId = userId; }
-    }
     public interface ApiInterface {
         @POST("register.php")
         Call<ApiResponse> register(@Body RegisterRequest request);
@@ -676,6 +560,7 @@ public class ApiService {
 
         @POST("wearoutfit.php")
         Call<SimpleResponse> wearOutfit(@Body WearOutfitRequest request);
+
         @POST("getitem.php")
         Call<GetItemResponse> getItem(@Body GetItemRequest request);
 
@@ -688,22 +573,16 @@ public class ApiService {
         @POST("deletecloth.php")
         Call<ApiResponse> deleteCloth(@Body DeleteClothRequest request);
 
-        @POST("getwashschedules.php")
-        Call<GetWashSchedulesResponse> getWashSchedules(@Body GetWashSchedulesRequest request);
+        @POST("deleteimages.php")
+        Call<SimpleResponse> deleteImage(@Body Map<String, String> body);
 
-        @POST("getwashschedule.php")
-        Call<GetWashScheduleResponse> getWashSchedule(@Body GetWashScheduleRequest request);
+        @POST("washclothes.php")
+        Call<SimpleResponse> washClothes(@Body WashClothesRequest request);
 
-        @POST("addwashschedule.php")
-        Call<SimpleResponse> addWashSchedule(@Body AddWashScheduleRequest request);
+        @Multipart
+        @POST("imageupload.php")
+        Call<ImageUploadResponse> uploadImage(@Part MultipartBody.Part image);
 
-        @POST("updatewashschedule.php")
-        Call<SimpleResponse> updateWashSchedule(@Body UpdateWashScheduleRequest request);
 
-        @POST("deletewashschedule.php")
-        Call<SimpleResponse> deleteWashSchedule(@Body DeleteWashScheduleRequest request);
-
-        @POST("markwashschedule.php")
-        Call<SimpleResponse> markWashSchedule(@Body MarkWashScheduleRequest request);
     }
 }

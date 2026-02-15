@@ -90,9 +90,9 @@
                     android:id="@+id/layoutSelectedGrid"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
                     android:gravity="center"
-                    android:minHeight="80dp">
+                    android:minHeight="80dp"
+                    android:orientation="horizontal">
 
 
                 </LinearLayout>

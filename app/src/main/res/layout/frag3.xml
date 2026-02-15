@@ -1,50 +1,128 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#121212">
+    android:background="#121212"
+    android:orientation="vertical">
 
-    <ScrollView
+    <!-- Category Selector with Flat Buttons -->
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/toggleGroup"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fillViewport="true"
-        android:scrollbars="vertical"
-        android:layout_above="@+id/btnAddSchedule">
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        app:singleSelection="true"
+        app:selectionRequired="true"
+        android:orientation="horizontal">
 
-        <LinearLayout
-            android:id="@+id/containerWashSchedules"
-            android:layout_width="match_parent"
+        <Button
+            android:id="@+id/btnFresh"
+            style="@style/LaundryToggleButton"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp"/>
+            android:layout_weight="1"
+            android:text="Fresh" />
 
-    </ScrollView>
+        <Button
+            android:id="@+id/btnUsed"
+            style="@style/LaundryToggleButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Used" />
 
-    <TextView
-        android:id="@+id/tvEmptyState"
+        <Button
+            android:id="@+id/btnDirty"
+            style="@style/LaundryToggleButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Dirty" />
+    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+    <!-- Progress Bar -->
+    <ProgressBar
+        android:id="@+id/progressBar"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:text="No wash schedules yet.\nTap the Add Wash Schedule button below to create one"
-        android:textColor="#888888"
-        android:textSize="16sp"
-        android:gravity="center"
-        android:lineSpacingExtra="4dp"
-        android:visibility="visible"/>
+        android:layout_gravity="center"
+        android:visibility="gone" />
 
-    <Button
-        android:id="@+id/btnAddSchedule"
+    <!-- Category Header -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:text="Add Wash Schedule"
-        android:textSize="16sp"
-        android:padding="12sp"
-        android:backgroundTint="#9ED0FF"
-        android:textColor="#000000"
-        android:layout_margin="16dp"
-        android:drawablePadding="8dp"
-        android:gravity="center"/>
+        android:orientation="horizontal"
+        android:paddingHorizontal="20dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="16dp">
 
-</RelativeLayout>
+        <TextView
+            android:id="@+id/tvCategoryTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Fresh"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvCategoryCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="(0)"
+            android:textColor="#9E9E9E"
+            android:textSize="18sp" />
+    </LinearLayout>
+
+    <!-- Items Container -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:id="@+id/containerLaundry"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </ScrollView>
+
+    <!-- Bottom Wash Bar (Hidden by default) -->
+    <LinearLayout
+        android:id="@+id/bottomWashBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="#2c3e50"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tvSelectedCount"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="0 clothes selected"
+            android:textColor="#fff"
+            android:textSize="18sp"
+            android:gravity="center_vertical" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnWash"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Wash"
+            android:textSize="16sp"
+            android:enabled="false"
+            app:cornerRadius="0dp">
+
+        </com.google.android.material.button.MaterialButton>
+    </LinearLayout>
+</LinearLayout>

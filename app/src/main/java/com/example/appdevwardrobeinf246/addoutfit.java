@@ -10,6 +10,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
+import com.bumptech.glide.Glide;
 import java.util.ArrayList;
 import java.util.List;
 import retrofit2.Call;
@@ -39,28 +40,26 @@ public class addoutfit extends AppCompatActivity {
         gridWardrobeItems = findViewById(R.id.gridWardrobeItems);
         btnSaveOutfit = findViewById(R.id.btnSaveOutfit);
 
-        loadWardrobeItems();          // async – wardrobeItems stays empty until response arrives
-        updateSelectedCount();        // uses selectedItems, not wardrobeItems – safe
+        loadWardrobeItems();
+        updateSelectedCount();
 
         btnSaveOutfit.setOnClickListener(v -> saveOutfit());
     }
 
     private void loadWardrobeItems() {
-        int userId = getCurrentUserId();
-        if (userId == -1) {
+        int user_Id = getCurrentUserId();
+        if (user_Id == -1) {
             Toast.makeText(this, "Not logged in", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
-
-        ApiService.GetClothesRequest request = new ApiService.GetClothesRequest(userId);
+        ApiService.GetClothesRequest request = new ApiService.GetClothesRequest(user_Id, "", "all", "all", "all");
         retrofitclient.getClient().getClothes(request).enqueue(new Callback<ApiService.ApiResponse>() {
             @Override
             public void onResponse(Call<ApiService.ApiResponse> call, Response<ApiService.ApiResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     ApiService.ApiResponse res = response.body();
                     if ("success".equals(res.getStatus())) {
-                        // ✅ Update the list – never null
                         wardrobeItems = res.getClothes();
                         if (wardrobeItems == null) wardrobeItems = new ArrayList<>();
                         runOnUiThread(() -> displayWardrobeItems());
@@ -82,7 +81,6 @@ public class addoutfit extends AppCompatActivity {
     private void displayWardrobeItems() {
         gridWardrobeItems.removeAllViews();
 
-        // ✅ wardrobeItems is guaranteed non‑null
         for (int i = 0; i < wardrobeItems.size(); i++) {
             clothitem item = wardrobeItems.get(i);
 
@@ -92,11 +90,14 @@ public class addoutfit extends AppCompatActivity {
             TextView tvItemName = itemView.findViewById(R.id.tvItemName);
             TextView tvItemType = itemView.findViewById(R.id.tvItemType);
 
-            try {
-                imgItem.setImageURI(Uri.parse(item.imageUri));
-            } catch (Exception e) {
-                imgItem.setImageResource(android.R.drawable.ic_menu_gallery);
-            }
+
+            Glide.with(addoutfit.this)
+                    .load(item.imageUri)
+                    .placeholder(android.R.drawable.ic_menu_gallery)
+                    .error(android.R.drawable.ic_menu_gallery)
+                    .centerCrop()
+                    .into(imgItem);
+
             tvItemName.setText(item.name);
             tvItemType.setText(item.type);
 
@@ -141,11 +142,15 @@ public class addoutfit extends AppCompatActivity {
             params.setMargins(4, 0, 4, 0);
             imageView.setLayoutParams(params);
             imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            try {
-                imageView.setImageURI(Uri.parse(item.imageUri));
-            } catch (Exception e) {
-                imageView.setImageResource(android.R.drawable.ic_menu_gallery);
-            }
+
+
+            Glide.with(addoutfit.this)
+                    .load(item.imageUri)
+                    .placeholder(android.R.drawable.ic_menu_gallery)
+                    .error(android.R.drawable.ic_menu_gallery)
+                    .centerCrop()
+                    .into(imageView);
+
             imageView.setBackgroundColor(Color.parseColor("#2A2A2A"));
             layoutSelectedGrid.addView(imageView);
         }
@@ -164,8 +169,8 @@ public class addoutfit extends AppCompatActivity {
             return;
         }
 
-        int userId = getCurrentUserId();
-        if (userId == -1) {
+        int user_Id = getCurrentUserId();
+        if (user_Id == -1) {
             Toast.makeText(this, "Not logged in", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -176,7 +181,7 @@ public class addoutfit extends AppCompatActivity {
         }
 
         ApiService.AddOutfitRequest request = new ApiService.AddOutfitRequest(
-                userId, name, description, clothingIds
+                user_Id, name, description, clothingIds
         );
 
         retrofitclient.getClient().addOutfit(request).enqueue(new Callback<ApiService.SimpleResponse>() {

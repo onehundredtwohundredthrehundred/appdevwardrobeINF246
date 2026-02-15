@@ -31,33 +31,26 @@ public class frag4 extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.settings, container, false);
 
-        // Initialize views
         tvCurrentUser = view.findViewById(R.id.tvCurrentUser);
         btnSignOut = view.findViewById(R.id.btnSignOut);
-        btnClearCache = view.findViewById(R.id.btnClearCache);
 
         btnDeleteAccount = view.findViewById(R.id.btnDeleteAccount);
         if (btnDeleteAccount == null) {
-            // Create button programmatically
             btnDeleteAccount = new Button(requireContext());
             btnDeleteAccount.setText("Delete Account");
             btnDeleteAccount.setBackgroundColor(0xFFFF4444);
             btnDeleteAccount.setTextColor(0xFFFFFFFF);
 
-            // Add to layout
             if (view instanceof ViewGroup) {
                 ((ViewGroup) view).addView(btnDeleteAccount);
             }
         }
 
-        // Get current user
         SharedPreferences prefs = requireActivity().getSharedPreferences("UserPrefs", 0);
         String username = prefs.getString("username", "Not logged in");
         tvCurrentUser.setText("Current User: " + username);
 
-        // Set up button listeners
         btnSignOut.setOnClickListener(v -> showSignOutConfirmation());
-        btnClearCache.setOnClickListener(v -> showClearCacheConfirmation());
         btnDeleteAccount.setOnClickListener(v -> showDeleteAccountDialog(username));
 
         return view;
@@ -88,7 +81,7 @@ public class frag4 extends Fragment {
 
         builder.setNegativeButton("Cancel", null);
 
-        // Make dialog text red
+
         AlertDialog dialog = builder.create();
         dialog.setOnShowListener(new DialogInterface.OnShowListener() {
             @Override
